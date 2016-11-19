@@ -135,6 +135,8 @@ save(pred, rs.glm, file = "./glmoutput.RData")
 ############## gbm regression #################
 ###############################################
 
+source("./lib/train_gbm.R")
+
 pred.gbm <- matrix(NA, length(testindex), 5000)
 notzero.index <- which(f.word!=0)
 
@@ -156,6 +158,32 @@ for (i in 1:length(testindex)){
 }
 
 mean(rs.gbm)
+
+#####################################
+############## svm  #################
+#####################################
+
+source("./lib/train_svm.R")
+
+pred.svm <- matrix(NA, length(testindex), 5000)
+notzero.index <- which(f.word!=0)
+par <- list(kernel = "radial", cost = 1, gamma = 0.001)
+
+for (i in notzero.index){
+  fit.svm <- train_svm(X.train, lyr.train[,i], par)
+  pred.svm[,i] <- predict(fit.svm, newdata=data.frame(X.test))
+}
+
+###calculate predictive rank sum
+rs.svm <- rep(NA, length(testindex))
+
+for (i in 1:length(testindex)){
+  rank.svm <- rank(-pred.svm[i,])
+  index <- which(lyr.test[i,] != 0)
+  rs.svm[i] <- sum(rank.svm[index])/r.bar/length(index)
+}
+
+mean(rs.svm)
 
 
 ###############################################
@@ -200,16 +228,11 @@ G <- 5000
 alpha <- 0.02
 eta <- 0.02
 
-# Fit the model:
-library(lda)
-set.seed(357)
-#t1 <- Sys.time()
+
 fit <- lda.collapsed.gibbs.sampler(documents = documents, K = K, vocab = vocab_m, 
                                    num.iterations = G, alpha = alpha, 
                                    eta = eta, initial = NULL, burnin = 0,
                                    compute.log.likelihood = TRUE)
-#t2 <- Sys.time()
-#t2 - t1  # about 24 minutes on laptop
 
 ##
 theta <- t(apply(fit$document_sums + alpha, 2, function(x) x/sum(x)))
